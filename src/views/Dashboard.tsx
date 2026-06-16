@@ -14,7 +14,9 @@ import {
   getStudents,
   deleteStudent,
   updateUser,
-  getCourses
+  getCourses,
+  getCurrentSemester,
+  updateCurrentSemester
 } from '../utils/api';
 import {
   LayoutDashboard,
@@ -34,7 +36,8 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
-  Search
+  Search,
+  Settings as SettingsIcon
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -42,7 +45,9 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onLogout }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'departments' | 'reps' | 'staff' | 'students'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'departments' | 'reps' | 'staff' | 'students' | 'settings'>('overview');
+  const [currentSemester, setCurrentSemester] = useState('');
+  const [currentSemesterInput, setCurrentSemesterInput] = useState('');
 
   // Sidebar State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -101,13 +106,14 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsRes, deptsRes, repsRes, staffRes, studentsRes, coursesRes] = await Promise.all([
+      const [statsRes, deptsRes, repsRes, staffRes, studentsRes, coursesRes, semRes] = await Promise.all([
         getStats(),
         getDepartments(),
         getReps(),
         getLecturers(),
         getStudents(),
-        getCourses()
+        getCourses(),
+        getCurrentSemester()
       ]);
       setStats(statsRes.data);
       setDepartments(deptsRes.data);
@@ -115,6 +121,10 @@ export default function Dashboard({ onLogout }: DashboardProps) {
       setStaff(staffRes.data);
       setStudents(studentsRes.data);
       setCourses(coursesRes.data);
+      if (semRes.data) {
+        setCurrentSemester(semRes.data.currentSemester || 'semester1');
+        setCurrentSemesterInput(semRes.data.currentSemester || 'semester1');
+      }
     } catch (err) {
       console.error("Error loading dashboard data:", err);
     } finally {
@@ -561,6 +571,19 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           >
             <Users size={18} style={sidebarCollapsed ? {} : { marginRight: 10 }} />
             {!sidebarCollapsed && <span>Student Directory</span>}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            title="System Settings"
+            style={{
+              ...styles.tabBtn,
+              ...(activeTab === 'settings' ? styles.tabBtnActive : {}),
+              ...(sidebarCollapsed ? styles.tabBtnCollapsed : {}),
+            }}
+          >
+            <SettingsIcon size={18} style={sidebarCollapsed ? {} : { marginRight: 10 }} />
+            {!sidebarCollapsed && <span>System Settings</span>}
           </button>
         </aside>
 
@@ -1068,6 +1091,68 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 6: System Settings */}
+              {activeTab === 'settings' && (
+                <div style={styles.tabContent}>
+                  <div style={styles.sectionHeader}>
+                    <div>
+                      <h2>System Settings</h2>
+                      <p>Manage global configuration parameters for StudySync</p>
+                    </div>
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '600px' }}>
+                    <div style={styles.inputGroup}>
+                      <label style={{ ...styles.label, fontSize: '14px', fontWeight: 700, color: '#9ca3af' }}>Current Global Semester</label>
+                      <p style={{ fontSize: '13px', color: '#6b7280', margin: '-4px 0 10px 0' }}>
+                        This semester tags all newly created courses, classes, deadlines, reports, and announcements.
+                      </p>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ ...styles.modalInput, background: '#0b1329', border: '1px solid rgba(255, 255, 255, 0.08)', color: '#fff' }}
+                        placeholder="e.g. Harmattan 2025/2026"
+                        value={currentSemesterInput}
+                        onChange={(e) => setCurrentSemesterInput(e.target.value)}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                      <button
+                        onClick={async () => {
+                          const trimSem = currentSemesterInput.trim();
+                          if (!trimSem) {
+                            alert("Semester name cannot be empty.");
+                            return;
+                          }
+                          const confirmChange = window.confirm(
+                            `⚠️ WARNING: Changing the active global semester to "${trimSem}" will start representatives and students with a clean slate for the new term.\n\nAll existing schedules and timetables will remain archived in the database, but active views on mobile will start empty.\n\nAre you sure you want to proceed?`
+                          );
+                          if (!confirmChange) return;
+
+                          try {
+                            setSubmitting(true);
+                            await updateCurrentSemester(trimSem);
+                            setCurrentSemester(trimSem);
+                            alert("Global semester updated successfully!");
+                            fetchData();
+                          } catch (err: any) {
+                            alert(err.response?.data?.error || "Failed to update global semester.");
+                          } finally {
+                            setSubmitting(false);
+                          }
+                        }}
+                        className="btn-primary"
+                        style={{ ...styles.formBtn, maxWidth: '200px' }}
+                        disabled={submitting || currentSemester.trim() === currentSemesterInput.trim()}
+                      >
+                        {submitting ? "Updating..." : "Save Semester"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

@@ -17,6 +17,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let isSessionAlertActive = false;
+
+// Interceptor to handle token expiration (401 Unauthorized)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const isLoginRequest = error.config && error.config.url && error.config.url.includes('/auth/login');
+      if (!isLoginRequest) {
+        localStorage.removeItem('adminToken');
+        if (!isSessionAlertActive) {
+          isSessionAlertActive = true;
+          alert('Your session has expired. Please sign in again.');
+          window.location.reload();
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 // REST API calls
 export const login = (identifier: string, password: string) =>
   api.post('/auth/login', { identifier, password });
@@ -65,3 +87,10 @@ export const updateUser = (id: string, data: any) =>
 
 export const getCourses = () =>
   api.get('/admin/courses');
+
+export const getCurrentSemester = () =>
+  api.get('/settings/current');
+
+export const updateCurrentSemester = (semester: string) =>
+  api.post('/settings/current', { semester });
+
