@@ -94,3 +94,6 @@ export const getCurrentSemester = () =>
 export const updateCurrentSemester = (semester: string) =>
   api.post('/settings/current', { semester });
 
+export const updateSystemSettings = (data: { semester?: string; repInviteCode?: string }) =>
+  api.post('/settings/current', data);
+

@@ -16,7 +16,8 @@ import {
   updateUser,
   getCourses,
   getCurrentSemester,
-  updateCurrentSemester
+  updateCurrentSemester,
+  updateSystemSettings
 } from '../utils/api';
 import {
   LayoutDashboard,
@@ -48,6 +49,8 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'departments' | 'reps' | 'staff' | 'students' | 'settings'>('overview');
   const [currentSemester, setCurrentSemester] = useState('');
   const [currentSemesterInput, setCurrentSemesterInput] = useState('');
+  const [repInviteCode, setRepInviteCode] = useState('');
+  const [repInviteCodeInput, setRepInviteCodeInput] = useState('');
 
   // Sidebar State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -124,6 +127,8 @@ export default function Dashboard({ onLogout }: DashboardProps) {
       if (semRes.data) {
         setCurrentSemester(semRes.data.currentSemester || 'semester1');
         setCurrentSemesterInput(semRes.data.currentSemester || 'semester1');
+        setRepInviteCode(semRes.data.repInviteCode || '');
+        setRepInviteCodeInput(semRes.data.repInviteCode || '');
       }
     } catch (err) {
       console.error("Error loading dashboard data:", err);
@@ -1119,9 +1124,6 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                         value={currentSemesterInput}
                         onChange={(e) => setCurrentSemesterInput(e.target.value)}
                       />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
                       <button
                         onClick={async () => {
                           const trimSem = currentSemesterInput.trim();
@@ -1147,10 +1149,52 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                           }
                         }}
                         className="btn-primary"
-                        style={{ ...styles.formBtn, maxWidth: '200px' }}
+                        style={{ ...styles.formBtn, maxWidth: '200px', marginTop: '12px' }}
                         disabled={submitting || currentSemester.trim() === currentSemesterInput.trim()}
                       >
                         {submitting ? "Updating..." : "Save Semester"}
+                      </button>
+                    </div>
+
+                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)' }} />
+
+                    <div style={styles.inputGroup}>
+                      <label style={{ ...styles.label, fontSize: '14px', fontWeight: 700, color: '#9ca3af' }}>Representative Registration Invite Code</label>
+                      <p style={{ fontSize: '13px', color: '#6b7280', margin: '-4px 0 10px 0' }}>
+                        This is the verification key/code required by new representatives during registration.
+                      </p>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ ...styles.modalInput, background: '#0b1329', border: '1px solid rgba(255, 255, 255, 0.08)', color: '#fff' }}
+                        placeholder="e.g. StudySyncRep2026"
+                        value={repInviteCodeInput}
+                        onChange={(e) => setRepInviteCodeInput(e.target.value)}
+                      />
+                      <button
+                        onClick={async () => {
+                          const trimKey = repInviteCodeInput.trim();
+                          if (!trimKey) {
+                            alert("Invite code cannot be empty.");
+                            return;
+                          }
+                          try {
+                            setSubmitting(true);
+                            await updateSystemSettings({ repInviteCode: trimKey });
+                            setRepInviteCode(trimKey);
+                            alert("Representative signup invite code updated successfully!");
+                            fetchData();
+                          } catch (err: any) {
+                            alert(err.response?.data?.error || "Failed to update Representative invite code.");
+                          } finally {
+                            setSubmitting(false);
+                          }
+                        }}
+                        className="btn-primary"
+                        style={{ ...styles.formBtn, maxWidth: '250px', marginTop: '12px' }}
+                        disabled={submitting || repInviteCode.trim() === repInviteCodeInput.trim()}
+                      >
+                        {submitting ? "Updating..." : "Save Registration Key"}
                       </button>
                     </div>
                   </div>
